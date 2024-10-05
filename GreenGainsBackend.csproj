@@ -10,4 +10,12 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EditorConfigFiles Remove="D:\__FHV\Master\Projekt\Backend\GreenGainsBackend\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="D:\__FHV\Master\Projekt\Backend\GreenGainsBackend\.editorconfig" />
+  </ItemGroup>
+
 </Project>
