@@ -29,48 +29,59 @@ public class MeterReadingParser
             switch (key)
             {
                 case "1.7.0":
-                    message.AddSensorData(OBISCode.Code_1_7_0, value);
+                    message.Code = OBISCode.Code_1_7_0;
+                    message.Value = value;
                     break;
                 case "1.8.0":
-                    message.AddSensorData(OBISCode.Code_1_8_0, value);
+                    message.Code = OBISCode.Code_1_8_0;
+                    message.Value = value;
                     break;
                 case "2.7.0":
-                    message.AddSensorData(OBISCode.Code_2_7_0, value);
+                    message.Code = OBISCode.Code_2_7_0;
+                    message.Value = value;
                     break;
                 case "2.8.0":
-                    message.AddSensorData(OBISCode.Code_2_8_0, value);
+                    message.Code = OBISCode.Code_2_8_0;
+                    message.Value = value;
                     break;
                 case "3.8.0":
-                    message.AddSensorData(OBISCode.Code_3_8_0, value);
+                    message.Code = OBISCode.Code_3_8_0;
+                    message.Value = value;
                     break;
                 case "4.8.0":
-                    message.AddSensorData(OBISCode.Code_4_8_0, value);
+                    message.Code = OBISCode.Code_4_8_0;
+                    message.Value = value;
                     break;
                 case "16.7.0":
-                    message.AddSensorData(OBISCode.Code_16_7_0, value);
+                    message.Code = OBISCode.Code_16_7_0;
+                    message.Value = value;
                     break;
                 case "31.7.0":
-                    message.AddSensorData(OBISCode.Code_31_7_0, value);
+                    message.Code = OBISCode.Code_31_7_0;
+                    message.Value = value;
                     break;
                 case "32.7.0":
-                    message.AddSensorData(OBISCode.Code_32_7_0, value);
+                    message.Code = OBISCode.Code_32_7_0;
+                    message.Value = value;
                     break;
                 case "51.7.0":
-                    message.AddSensorData(OBISCode.Code_51_7_0, value);
+                    message.Code = OBISCode.Code_51_7_0;
+                    message.Value = value;
                     break;
                 case "52.7.0":
-                    message.AddSensorData(OBISCode.Code_52_7_0, value);
+                    message.Code = OBISCode.Code_52_7_0;
+                    message.Value = value;
                     break;
                 case "71.7.0":
-                    message.AddSensorData(OBISCode.Code_71_7_0, value);
+                    message.Code = OBISCode.Code_71_7_0;
+                    message.Value = value;
                     break;
                 case "72.7.0":
-                    message.AddSensorData(OBISCode.Code_72_7_0, value);
+                    message.Code = OBISCode.Code_72_7_0;
+                    message.Value = value;
                     break;
             }
-
         }
-
         return message;
     }
 }
