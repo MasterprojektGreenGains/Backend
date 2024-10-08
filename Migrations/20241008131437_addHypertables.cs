@@ -10,9 +10,7 @@ namespace GreenGainsBackend.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(@"
-                SELECT create_hypertable('meterreadings', by_range('Timestamp'));
-            ");
+            migrationBuilder.Sql(@"SELECT create_hypertable('sensorreadings', 'Timestamp');");
         }
 
         /// <inheritdoc />

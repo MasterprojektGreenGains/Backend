@@ -1,6 +1,12 @@
+using GreenGainsBackend.Domain;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("GreenGainsDb"));
+dataSourceBuilder.MapEnum<OBISCode>();
+var dataSource = dataSourceBuilder.Build();
 
 // Add services to the container.
 
@@ -10,9 +16,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<MeterDataDbContext>(options =>
-    {
-        options.UseNpgsql(builder.Configuration.GetConnectionString("GreenGainsDb"));
-    }
+    options.UseNpgsql(dataSource, o => o.UseNodaTime())
 );
 
 var app = builder.Build();

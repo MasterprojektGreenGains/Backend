@@ -1,4 +1,4 @@
-@GreenGainsBackend_HostAddress = http://localhost:5249
+@GreenGainsBackend_HostAddress = http://localhost:5051
 
 GET {{GreenGainsBackend_HostAddress}}/weatherforecast/
 Accept: application/json

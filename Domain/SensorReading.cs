@@ -1,21 +1,21 @@
-﻿using GreenGainsBackend.Models;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using NodaTime;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GreenGainsBackend.Domain;
 
 [Keyless]
-[Table("meterreadings")]
-public class MeterReading
+[Table("sensorreadings")]
+public class SensorReading
 {
     public string? Topic { get; set; }
-    public DateTime Time { get; set; }
+    public Instant Time { get; set; }
     public string? Uptime { get; set; }
-    public DateTime Timestamp { get; set; }
+    public Instant Timestamp { get; set; }
     public OBISCode Code { get; set; }
     public double Value { get; set; }
 
-    public MeterReading()
+    public SensorReading()
     {
 
     }
@@ -23,8 +23,8 @@ public class MeterReading
     public override string ToString()
     {
         var output = $"Topic: \t\t{Topic}\nTime: \t\t{Time}\nUptime: \t{Uptime}\nTimestamp: \t{Timestamp}\n";
-        output += $"SensorData: \n";
-        output += $"\t{Code}:\t{Value}\n";
+        output += $"Code and Value: \n";
+        output += $"{Code}:\t{Value}\n";
 
         return output;
     }
