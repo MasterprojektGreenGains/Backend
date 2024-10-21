@@ -38,12 +38,14 @@ public class TestController : ControllerBase
 
         IEnumerable<SensorReading> sensorReadings = parser.ParseSensorData(sensorData);
 
+        await using var connection = new NpgsqlConnection(_configuration.GetConnectionString("GreenGainsDb"));
+        await connection.OpenAsync();
+        var transaction = await connection.BeginTransactionAsync();
+
         foreach (var reading in sensorReadings)
         {
-            await using var connection = new NpgsqlConnection(_configuration.GetConnectionString("GreenGainsDb"));
-            await connection.OpenAsync();
 
-            await using var cmd = new NpgsqlCommand("INSERT INTO sensorreadings(\"Topic\", \"Time\", \"Uptime\", \"Timestamp\", \"Code\", \"Value\") VALUES ($1, $2, $3, $4, $5, $6);", connection)
+            await using var cmd = new NpgsqlCommand("INSERT INTO sensorreadings(\"Topic\", \"Time\", \"Uptime\", \"Timestamp\", \"Code\", \"Value\") VALUES ($1, $2, $3, $4, $5, $6);", connection, transaction)
             {
                 Parameters =
                 {
@@ -55,11 +57,11 @@ public class TestController : ControllerBase
                     new() { Value = reading.Value}
                 }
             };
-
             await cmd.ExecuteNonQueryAsync();
-            await connection.CloseAsync();
         }
 
+        await transaction.CommitAsync();
+        await connection.CloseAsync();
         await _context.SaveChangesAsync();
 
         return Created();
