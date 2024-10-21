@@ -31,13 +31,11 @@ public class SensorReadingParser
                     message.Code = OBISCode.code_1_7_0;
                     message.Value = (double)data.Value;
                     sensorReadings.Add(message);
-
                     break;
                 case "1.8.0":
                     message.Code = OBISCode.code_1_8_0;
                     message.Value = (double)data.Value;
                     sensorReadings.Add(message);
-
                     break;
                 case "2.7.0":
                     message.Code = OBISCode.code_2_7_0;
