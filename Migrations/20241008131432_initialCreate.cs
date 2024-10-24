@@ -1,6 +1,5 @@
 ﻿using GreenGainsBackend.Domain;
 using Microsoft.EntityFrameworkCore.Migrations;
-using NodaTime;
 
 #nullable disable
 
@@ -20,9 +19,9 @@ namespace GreenGainsBackend.Migrations
                 columns: table => new
                 {
                     Topic = table.Column<string>(type: "text", nullable: true),
-                    Time = table.Column<Instant>(type: "timestamp with time zone", nullable: false),
+                    Time = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Uptime = table.Column<string>(type: "text", nullable: true),
-                    Timestamp = table.Column<Instant>(type: "timestamp with time zone", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Code = table.Column<OBISCode>(type: "obis_code", nullable: false),
                     Value = table.Column<double>(type: "double precision", nullable: false)
                 },

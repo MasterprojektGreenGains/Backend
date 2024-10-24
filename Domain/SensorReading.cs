@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using NodaTime;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GreenGainsBackend.Domain;
@@ -9,9 +8,9 @@ namespace GreenGainsBackend.Domain;
 public class SensorReading
 {
     public string? Topic { get; set; }
-    public Instant Time { get; set; }
+    public DateTime Time { get; set; }
     public string? Uptime { get; set; }
-    public Instant Timestamp { get; set; }
+    public DateTime Timestamp { get; set; }
     public OBISCode Code { get; set; }
     public double Value { get; set; }
 

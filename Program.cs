@@ -15,8 +15,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<MeterDataDbContext>(options =>
-    options.UseNpgsql(dataSource, o => o.UseNodaTime())
+builder.Services.AddDbContextPool<MeterDataDbContext>(options =>
+    options.UseNpgsql(dataSource)
 );
 
 var app = builder.Build();

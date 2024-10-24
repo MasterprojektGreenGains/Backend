@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json.Linq;
-using NodaTime;
 
 namespace GreenGainsBackend.Domain.Helper;
 
@@ -18,12 +17,14 @@ public class SensorReadingParser
             var message = new SensorReading
             {
                 Topic = parsedData["topic"]?.ToString(),
-                Time = Instant.FromDateTimeOffset(DateTime.Parse(parsedData["time"]?.ToString() ?? "")),
+                Time = DateTime.Parse(parsedData["time"]?.ToString() ?? ""),
                 Uptime = parsedData["message"]?["uptime"]?.ToString(),
-                Timestamp = Instant.FromDateTimeOffset(DateTime.Parse(parsedData["message"]?["timestamp"]?.ToString() ?? ""))
+                Timestamp = DateTime.Parse(parsedData["message"]?["timestamp"]?.ToString() ?? "")
             };
 
             var key = data.Key;
+
+            if (data.Value == null) continue;
 
             switch (key)
             {
