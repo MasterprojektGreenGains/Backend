@@ -10,23 +10,29 @@ It includes Endpoints to receive Data from Sensors and Endpoints for the Fronten
 
 ## Prerequisites
 
-> - [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) - `v8.0.10`
+> [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) - `v8.0.10`
 >
-> - Microsoft Visual Studio 2022 - `v17.11.5`
+> Microsoft Visual Studio 2022 - `v17.11.5`
 
 ## Getting Started
 
 1. Clone Repo
 
-`git clone https://github.com/MasterprojektGreenGains/Backend`
+```console
+git clone https://github.com/MasterprojektGreenGains/Backend
+```
 
 2. change to directory
 
-`cd Backend`
+```console
+cd Backend
+```
 
 3. Run build
 
-`dotnet run build`
+```console
+dotnet run build
+```
 
 ### Setting Up the appsettings Connectionstrings
 
@@ -54,11 +60,15 @@ For Local Testing Purposes you can run a TimescaleDB Instance in Docker
 
 Use the following command
 
-`docker run -d --name GreenGainsDb -p 5432:5432 -e POSTGRES_PASSWORD=GreenGains timescale/timescaledb-ha:pg16`
+```console
+docker run -d --name GreenGainsDb -p 5432:5432 -e POSTGRES_PASSWORD=GreenGains timescale/timescaledb-ha:pg16
+```
 
 after this the docker instance should run and you should be able to apply the migrations to the database with
 
-`dotnet ef update database`
+```console
+dotnet ef update database
+```
 
 ## Running the Application
 
