@@ -44,7 +44,7 @@ To connect to any Database the API looks into the Configurations. The easiest wa
 }
 ```
 
-the default for our purpose and the one needed to connect to the Docker instance mentioned at [Starting the TimescaleDB Docker Instance](#starting-the-timescaledb-docker-instance-startingdocker) is
+the default for our purpose and the one needed to connect to the Docker instance mentioned at [Starting the TimescaleDB Docker Instance](#starting-the-timescaledb-docker-instance) is
 
 `"GreenGainsDb": "Server=127.0.0.1;Port=5432;Database=greengains;User Id=postgres;Password=GreenGains;"`
 
