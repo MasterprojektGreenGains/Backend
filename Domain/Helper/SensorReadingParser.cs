@@ -11,6 +11,9 @@ public class SensorReadingParser
 
         var messageData = parsedData["message"] as JObject;
 
+        if (messageData == null)
+            throw new Exception("Invalid JSON data");
+
         foreach (var data in messageData)
         {
 
