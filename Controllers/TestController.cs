@@ -20,6 +20,145 @@ public class TestController : ControllerBase
         _configuration = configuration;
     }
 
+    [HttpGet("sensor/data")]
+    public async Task<ActionResult<IEnumerable<SensorReading>>> GetSensorData(string deviceTopic, string interval)
+    {
+        if (string.IsNullOrEmpty(interval))
+            return BadRequest("Interval is required");
+
+        if (string.IsNullOrEmpty(deviceTopic))
+            return BadRequest("Device topic is required");
+
+        var schemaName = GetSchemaNameFromDeviceTopic(deviceTopic);
+
+        await using var connection = new NpgsqlConnection(_configuration.GetConnectionString("GreenGainsDb"));
+        await connection.OpenAsync();
+
+        await using var cmd = interval switch
+        {
+            "hour" => new NpgsqlCommand($"SELECT *" +
+                                        $"  FROM {schemaName}.sensorreadings" +
+                                        $"      WHERE \"Timestamp\" >= NOW() - INTERVAL '1 hour';"),
+            "day" => new NpgsqlCommand($"SELECT *" +
+                                        $"  FROM {schemaName}.sensorreadings" +
+                                        $"      WHERE \"Timestamp\" >= NOW() - INTERVAL '24 hours';"),
+            "week" => new NpgsqlCommand($"SELECT *" +
+                                        $"  FROM {schemaName}.sensorreadings" +
+                                        $"      WHERE \"Timestamp\" >= NOW() - INTERVAL '7 days';"),
+            "month" => new NpgsqlCommand($"SELECT *" +
+                                        $"  FROM {schemaName}.sensorreadings" +
+                                        $"      WHERE \"Timestamp\" >= NOW() - INTERVAL '1 month';"),
+            "" => throw new ArgumentException("Invalid interval"),
+            _ => throw new ArgumentException("Invalid interval")
+        };
+
+        cmd.Connection = connection;
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        var sensorReadings = new List<SensorReading>();
+
+        while (await reader.ReadAsync())
+        {
+            sensorReadings.Add(new SensorReading
+            {
+                Topic = reader.GetString(0),
+                Time = reader.GetDateTime(1),
+                Uptime = reader.GetString(2),
+                Timestamp = reader.GetDateTime(3),
+                Code = (OBISCode)Enum.Parse(typeof(OBISCode), reader.GetString(4)),
+                Value = reader.GetDouble(5)
+            });
+        }
+
+        await connection.CloseAsync();
+
+        return sensorReadings;
+    }
+
+    [HttpGet("sensor/data/bucket")]
+    public async Task<ActionResult<IEnumerable<SensorReadingBucket>>> GetSensorDataBucket(string deviceTopic, string interval)
+    {
+        if (string.IsNullOrEmpty(interval))
+            return BadRequest("Interval is required");
+
+        if (string.IsNullOrEmpty(deviceTopic))
+            return BadRequest("Device topic is required");
+
+        var schemaName = GetSchemaNameFromDeviceTopic(deviceTopic);
+
+        await using var connection = new NpgsqlConnection(_configuration.GetConnectionString("GreenGainsDb"));
+        await connection.OpenAsync();
+
+        await using var cmd = interval switch
+        {
+            "hour" => new NpgsqlCommand(
+                                        $"""
+                                            SELECT time_bucket('5 minutes', "Timestamp") as bucket,
+                                                "Code",
+                                                AVG("Value") as "Value"
+                                            FROM {schemaName}.sensorreadings
+                                            WHERE "Timestamp" >= NOW() - INTERVAL '1 hour'
+                                            GROUP BY bucket, "Code"
+                                            ORDER BY bucket, "Code";
+                                        """),
+
+            "day" => new NpgsqlCommand(
+                                        $"""
+                                            SELECT time_bucket('1 hour', "Timestamp") as bucket,
+                                                "Code",
+                                                AVG("Value") as "Value"
+                                            FROM {schemaName}.sensorreadings
+                                            WHERE "Timestamp" >= NOW() - INTERVAL '24 hours'
+                                            GROUP BY bucket, "Code"
+                                            ORDER BY bucket, "Code";
+                                        """),
+            "week" => new NpgsqlCommand(
+                                        $"""
+                                            SELECT time_bucket('1 day', "Timestamp") as bucket,
+                                                "Code",
+                                                AVG("Value") as "Value"
+                                            FROM {schemaName}.sensorreadings
+                                            WHERE "Timestamp" >= NOW() - INTERVAL '7 days'
+                                            GROUP BY bucket, "Code"
+                                            ORDER BY bucket, "Code";
+                                        """),
+            "month" => new NpgsqlCommand(
+                                        $"""
+                                            SELECT time_bucket('1 week', "Timestamp") as bucket,
+                                                "Code",
+                                                AVG("Value") as "Value"
+                                            FROM {schemaName}.sensorreadings
+                                            WHERE "Timestamp" >= NOW() - INTERVAL '1 month'
+                                            GROUP BY bucket, "Code"
+                                            ORDER BY bucket, "Code";
+                                        """),
+
+            _ => throw new ArgumentException("Invalid interval")
+        };
+
+        cmd.Connection = connection;
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        var sensorReadings = new List<SensorReadingBucket>();
+
+        while (await reader.ReadAsync())
+        {
+            sensorReadings.Add(new SensorReadingBucket
+            {
+                bucket = reader.GetDateTime(0),
+                Code = (OBISCode)Enum.Parse(typeof(OBISCode), reader.GetString(1)),
+                Value = reader.GetDouble(2)
+            });
+        }
+
+        await connection.CloseAsync();
+
+        return sensorReadings;
+
+    }
+
     [HttpGet("/test")]
     public async Task<ActionResult<IEnumerable<SensorReading>>> Get()
     {
@@ -43,11 +182,18 @@ public class TestController : ControllerBase
             return BadRequest();
         }
 
-        var schemaExists = await CheckIfSchemaExists(sensorReadings.First().Topic);
+        var deviceTopic = sensorReadings.First().Topic;
+
+        if (string.IsNullOrEmpty(deviceTopic))
+        {
+            return BadRequest("Device topic is required");
+        }
+
+        var schemaExists = await CheckIfSchemaExists(deviceTopic);
 
         if (!schemaExists)
         {
-            await CreateSchemaAndTableForDevice(sensorReadings.First().Topic);
+            await CreateSchemaAndTableForDevice(deviceTopic);
         }
 
         await using var connection = new NpgsqlConnection(_configuration.GetConnectionString("GreenGainsDb"));
@@ -56,7 +202,7 @@ public class TestController : ControllerBase
 
         foreach (var reading in sensorReadings)
         {
-            var schemeName = await GetSchemaNameFromDeviceTopic(reading.Topic);
+            var schemeName = GetSchemaNameFromDeviceTopic(deviceTopic);
 
             await using var cmd = new NpgsqlCommand($"INSERT INTO {schemeName}.sensorreadings(\"Topic\", \"Time\", \"Uptime\", \"Timestamp\", \"Code\", \"Value\") VALUES ($1, $2, $3, $4, $5, $6);", connection, transaction)
             {
@@ -83,7 +229,7 @@ public class TestController : ControllerBase
 
     private async Task<bool> CheckIfSchemaExists(string deviceTopic)
     {
-        var schemaName = await GetSchemaNameFromDeviceTopic(deviceTopic);
+        var schemaName = GetSchemaNameFromDeviceTopic(deviceTopic);
 
         await using var connection = new NpgsqlConnection(_configuration.GetConnectionString("GreenGainsDb"));
         await connection.OpenAsync();
@@ -100,7 +246,7 @@ public class TestController : ControllerBase
 
     private async Task CreateSchemaAndTableForDevice(string deviceTopic)
     {
-        var schemaName = await GetSchemaNameFromDeviceTopic(deviceTopic);
+        var schemaName = GetSchemaNameFromDeviceTopic(deviceTopic);
         var createSchemaQuery = $"CREATE SCHEMA IF NOT EXISTS {schemaName};";
         var createTableQuery = $"CREATE TABLE" +
                                 $"   IF NOT EXISTS" +
@@ -123,7 +269,7 @@ public class TestController : ControllerBase
         return;
     }
 
-    private async Task<string> GetSchemaNameFromDeviceTopic(string deviceTopic)
+    private string GetSchemaNameFromDeviceTopic(string deviceTopic)
     {
         var deviceTopicFormatted = deviceTopic.Replace("/", "_").ToLower();
 

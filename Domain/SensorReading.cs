@@ -28,3 +28,10 @@ public class SensorReading
         return output;
     }
 }
+
+public class SensorReadingBucket
+{
+    public DateTime bucket { get; set; }
+    public OBISCode Code { get; set; }
+    public double Value { get; set; }
+}
