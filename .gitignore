@@ -837,3 +837,6 @@ fabric.properties
 
 # Ignore Appsettings files
 appsettings.Development.json
+
+# Ignore test data
+mqtt_messages_2.json
