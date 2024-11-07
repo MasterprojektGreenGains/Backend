@@ -3,6 +3,7 @@ using GreenGainsBackend.Domain.Helper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using System.Diagnostics;
 
 namespace GreenGainsBackend.Controllers;
 
@@ -18,6 +19,92 @@ public class TestController : ControllerBase
     {
         _context = context;
         _configuration = configuration;
+    }
+
+    [HttpGet("seedDB")]
+    public async Task<IActionResult> SeedDBFromJSON()
+    {
+        var watch = new Stopwatch();
+
+        watch.Start();
+
+        var filePath = "./mqtt_messages_2.json";
+
+        if (!System.IO.File.Exists(filePath))
+            return NotFound("File not found");
+
+        using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+        using var reader = new StreamReader(stream);
+        var sensorData = await reader.ReadToEndAsync();
+
+        Console.WriteLine("Read JSON File");
+
+        SensorReadingParser parser = new SensorReadingParser();
+        List<SensorReading> sensorReadings = parser.ParseTestSensorData(sensorData);
+
+        Console.WriteLine("Parsed JSON File");
+
+        if (!sensorReadings.Any())
+            return BadRequest("No sensor readings found in file");
+
+        var deviceTopic = "test_sensor";
+
+        var schemaExists = await CheckIfSchemaExists(deviceTopic);
+
+        if (!schemaExists)
+            await CreateSchemaAndTableForDevice(deviceTopic);
+
+        await using var connection = new NpgsqlConnection(_configuration.GetConnectionString("GreenGainsDb"));
+        await connection.OpenAsync();
+
+        int i = 0;
+        int max = sensorReadings.Count();
+
+        foreach (var sensorReading in sensorReadings)
+        {
+            var schemaName = GetSchemaNameFromDeviceTopic(deviceTopic);
+
+            sensorReading.Time = sensorReading.Time.AddYears(1);
+            sensorReading.Timestamp = sensorReading.Timestamp.AddYears(1);
+
+            await using var cmd = new NpgsqlCommand($"INSERT INTO {schemaName}.sensorreadings(\"Topic\", \"Time\", \"Uptime\", \"Timestamp\", \"Code\", \"Value\") VALUES ($1, $2, $3, $4, $5, $6);",
+                                                    connection)
+            {
+                Parameters =
+                {
+                    new() { Value = sensorReading.Topic       },
+                    new() { Value = sensorReading.Time        },
+                    new() { Value = sensorReading.Uptime      },
+                    new() { Value = sensorReading.Timestamp   },
+                    new() { Value = sensorReading.Code        },
+                    new() { Value = sensorReading.Value       }
+                }
+            };
+
+            await cmd.ExecuteNonQueryAsync();
+
+            Console.Clear();
+            Console.WriteLine("-------------------------------------");
+            Console.WriteLine("Added Number\t" + i);
+            Console.WriteLine("From max\t " + max);
+            Console.WriteLine("-------------------------------------");
+            i++;
+        }
+
+        await connection.CloseAsync();
+        await _context.SaveChangesAsync();
+
+        watch.Stop();
+
+        TimeSpan ts = watch.Elapsed;
+
+        string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}",
+            ts.Hours, ts.Minutes, ts.Seconds,
+            ts.Milliseconds / 10);
+
+        Console.WriteLine("elapsed Time: " + elapsedTime);
+
+        return Ok("Database seeded successfully!");
     }
 
     [HttpGet("sensor/data")]
@@ -192,19 +279,17 @@ public class TestController : ControllerBase
         var schemaExists = await CheckIfSchemaExists(deviceTopic);
 
         if (!schemaExists)
-        {
             await CreateSchemaAndTableForDevice(deviceTopic);
-        }
+
+        var schemeName = GetSchemaNameFromDeviceTopic(deviceTopic);
 
         await using var connection = new NpgsqlConnection(_configuration.GetConnectionString("GreenGainsDb"));
         await connection.OpenAsync();
-        var transaction = await connection.BeginTransactionAsync();
 
         foreach (var reading in sensorReadings)
         {
-            var schemeName = GetSchemaNameFromDeviceTopic(deviceTopic);
 
-            await using var cmd = new NpgsqlCommand($"INSERT INTO {schemeName}.sensorreadings(\"Topic\", \"Time\", \"Uptime\", \"Timestamp\", \"Code\", \"Value\") VALUES ($1, $2, $3, $4, $5, $6);", connection, transaction)
+            await using var cmd = new NpgsqlCommand($"INSERT INTO {schemeName}.sensorreadings(\"Topic\", \"Time\", \"Uptime\", \"Timestamp\", \"Code\", \"Value\") VALUES ($1, $2, $3, $4, $5, $6);", connection)
             {
                 Parameters =
                 {
@@ -220,7 +305,6 @@ public class TestController : ControllerBase
             await cmd.ExecuteNonQueryAsync();
         }
 
-        await transaction.CommitAsync();
         await connection.CloseAsync();
         await _context.SaveChangesAsync();
 
