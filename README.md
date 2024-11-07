@@ -67,7 +67,7 @@ docker run -d --name GreenGainsDb -p 5432:5432 -e POSTGRES_PASSWORD=GreenGains t
 after this the docker instance should run and you should be able to apply the migrations to the database with
 
 ```console
-dotnet ef update database
+dotnet ef database update
 ```
 
 ## Running the Application
