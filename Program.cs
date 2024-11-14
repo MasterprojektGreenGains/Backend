@@ -4,6 +4,8 @@ using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("GreenGainsDb"));
 dataSourceBuilder.MapEnum<OBISCode>();
 var dataSource = dataSourceBuilder.Build();
@@ -19,6 +21,15 @@ builder.Services.AddDbContextPool<MeterDataDbContext>(options =>
     options.UseNpgsql(dataSource)
 );
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: MyAllowSpecificOrigins,
+                      policy =>
+                      {
+                          policy.WithOrigins("localhost*");
+                      });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -27,6 +38,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseCors(MyAllowSpecificOrigins);
 
 app.UseHttpsRedirection();
 
