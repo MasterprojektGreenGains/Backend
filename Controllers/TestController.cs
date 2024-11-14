@@ -3,7 +3,6 @@ using GreenGainsBackend.Domain.Helper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using System.Diagnostics;
 
 namespace GreenGainsBackend.Controllers;
 
@@ -21,90 +20,79 @@ public class TestController : ControllerBase
         _configuration = configuration;
     }
 
-    [HttpGet("seedDB")]
-    public async Task<IActionResult> SeedDBFromJSON()
+    [HttpGet("generateData")]
+    public async Task<ActionResult> GenerateSensorData(int rowsToGenerate = 2000000, int initialPower = 500, int powerVariance = 50)
     {
-        var watch = new Stopwatch();
-
-        watch.Start();
-
-        var filePath = "./mqtt_messages_2.json";
-
-        if (!System.IO.File.Exists(filePath))
-            return NotFound("File not found");
-
-        using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-        using var reader = new StreamReader(stream);
-        var sensorData = await reader.ReadToEndAsync();
-
-        Console.WriteLine("Read JSON File");
-
-        SensorReadingParser parser = new SensorReadingParser();
-        List<SensorReading> sensorReadings = parser.ParseTestSensorData(sensorData);
-
-        Console.WriteLine("Parsed JSON File");
-
-        if (!sensorReadings.Any())
-            return BadRequest("No sensor readings found in file");
-
-        var deviceTopic = "test_sensor";
-
-        var schemaExists = await CheckIfSchemaExists(deviceTopic);
-
-        if (!schemaExists)
-            await CreateSchemaAndTableForDevice(deviceTopic);
+        var schemaName = GetSchemaNameFromDeviceTopic("generated/sensor");
 
         await using var connection = new NpgsqlConnection(_configuration.GetConnectionString("GreenGainsDb"));
         await connection.OpenAsync();
 
-        int i = 0;
-        int max = sensorReadings.Count();
+        await using var cmd = new NpgsqlCommand(
+            $"""
+                -- drop schema if it exists
+                DROP SCHEMA IF EXISTS schema_generated_sensor CASCADE;
 
-        foreach (var sensorReading in sensorReadings)
-        {
-            var schemaName = GetSchemaNameFromDeviceTopic(deviceTopic);
+                -- Create schema if it doesn't exist
+                CREATE SCHEMA IF NOT EXISTS schema_generated_sensor;
 
-            sensorReading.Time = sensorReading.Time.AddYears(1);
-            sensorReading.Timestamp = sensorReading.Timestamp.AddYears(1);
+                -- Create table if it doesn't exist
+                CREATE TABLE IF NOT EXISTS greengains.schema_generated_sensor.sensorreadings (
+                    Topic TEXT NOT NULL,
+                    Time TIMESTAMPTZ NOT NULL,
+                    Uptime TEXT NOT NULL,      -- Fixed text value for Uptime
+                    Timestamp TIMESTAMPTZ NOT NULL,
+                    Code TEXT NOT NULL,
+                    Value DECIMAL NOT NULL
+                );
 
-            await using var cmd = new NpgsqlCommand($"INSERT INTO {schemaName}.sensorreadings(\"Topic\", \"Time\", \"Uptime\", \"Timestamp\", \"Code\", \"Value\") VALUES ($1, $2, $3, $4, $5, $6);",
-                                                    connection)
-            {
-                Parameters =
-                {
-                    new() { Value = sensorReading.Topic       },
-                    new() { Value = sensorReading.Time        },
-                    new() { Value = sensorReading.Uptime      },
-                    new() { Value = sensorReading.Timestamp   },
-                    new() { Value = sensorReading.Code        },
-                    new() { Value = sensorReading.Value       }
-                }
-            };
+                DO $$
+                DECLARE
+                    rows_to_generate INTEGER := {rowsToGenerate};          -- Number of rows to generate
+                    initial_power DECIMAL := {initialPower};              -- Base power value for realistic apparent power
+                    power_variance DECIMAL := {powerVariance};              -- Fluctuation range for power values
+                BEGIN
+                    WITH RECURSIVE sensor_data AS (
+                        SELECT
+                            'generated_sensor'::TEXT AS Topic,
+                            NOW() AS Time,
+                            '0000:00:00:00'::TEXT AS Uptime,    -- Fixed text value for Uptime
+                            NOW() AS Timestamp,
+                            'code_16_7_0'::TEXT AS Code,
+                            CEIL(initial_power + (RANDOM() - 0.5) * 2 * power_variance)::DECIMAL AS Value,
+                            1 AS row_num
+                        UNION ALL
+                        SELECT
+                            'generated_sensor'::TEXT,
+                            Time - INTERVAL '60 seconds',
+                            '0000:00:00:00'::TEXT,              -- Fixed text value for Uptime
+                            Timestamp - INTERVAL '60 seconds',
+                            'code_16_7_0'::TEXT,
+                            CEIL(initial_power + (RANDOM() - 0.5) * 2 * power_variance)::DECIMAL,
+                            row_num + 1
+                        FROM sensor_data
+                        WHERE row_num < rows_to_generate
+                    )
+                    INSERT INTO greengains.schema_generated_sensor.sensorreadings (Topic, Time, Uptime, Timestamp, Code, Value)
+                    SELECT Topic, Time, Uptime, Timestamp, Code, Value
+                    FROM sensor_data;
+                END $$;
 
-            await cmd.ExecuteNonQueryAsync();
+                -- get all unique timestamps and group them by day and show count of how many readings were taken on that day
+                SELECT
+                    DATE_TRUNC('day', timestamp) AS day,
+                    COUNT(*) AS readings
+                FROM greengains.schema_generated_sensor.sensorreadings
+                GROUP BY day
+                ORDER BY day DESC;
+                """
+            , connection);
 
-            Console.Clear();
-            Console.WriteLine("-------------------------------------");
-            Console.WriteLine("Added Number\t" + i);
-            Console.WriteLine("From max\t " + max);
-            Console.WriteLine("-------------------------------------");
-            i++;
-        }
+        await cmd.ExecuteNonQueryAsync();
 
         await connection.CloseAsync();
-        await _context.SaveChangesAsync();
 
-        watch.Stop();
-
-        TimeSpan ts = watch.Elapsed;
-
-        string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}",
-            ts.Hours, ts.Minutes, ts.Seconds,
-            ts.Milliseconds / 10);
-
-        Console.WriteLine("elapsed Time: " + elapsedTime);
-
-        return Ok("Database seeded successfully!");
+        return Ok();
     }
 
     [HttpGet("sensor/data")]
